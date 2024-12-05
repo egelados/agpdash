@@ -126,7 +126,6 @@ if uploaded_file:
 
     # AGP
     agp_data = compute_agp(data)
-    st.header("AGP Visualization")
     st.pyplot(plot_agp(agp_data))
 
     # Daily Profiles
