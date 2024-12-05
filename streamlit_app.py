@@ -113,3 +113,81 @@ if uploaded_file:
     st.header("ΧΡΟΝΟΣ ΕΝΤΟΣ ΕΥΡΟΥΣ ΣΤΟΧΩΝ")
     stacked_chart = plot_time_in_range_stacked_vertical(summary)
     st.pyplot(stacked_chart)
+
+
+##########################################################
+
+
+def compute_agp(data):
+    # Extract time of day
+    data['Time of Day'] = data['Timestamp'].dt.hour + data['Timestamp'].dt.minute / 60
+
+    # Group data by time of day
+    grouped = data.groupby('Time of Day')['Glucose']
+
+    # Compute percentiles
+    agp_stats = grouped.agg(
+        Median='median',
+        Percentile5=lambda x: np.percentile(x, 5),
+        Percentile25=lambda x: np.percentile(x, 25),
+        Percentile75=lambda x: np.percentile(x, 75),
+        Percentile95=lambda x: np.percentile(x, 95)
+    )
+
+    return agp_stats.reset_index()
+
+def plot_agp(agp_data):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Plot percentiles
+    ax.fill_between(
+        agp_data['Time of Day'], 
+        agp_data['Percentile5'], 
+        agp_data['Percentile95'], 
+        color='lightblue', 
+        alpha=0.5, 
+        label='5th-95th Percentile'
+    )
+    ax.fill_between(
+        agp_data['Time of Day'], 
+        agp_data['Percentile25'], 
+        agp_data['Percentile75'], 
+        color='blue', 
+        alpha=0.3, 
+        label='25th-75th Percentile'
+    )
+    ax.plot(
+        agp_data['Time of Day'], 
+        agp_data['Median'], 
+        color='darkblue', 
+        linewidth=2, 
+        label='Median (50th Percentile)'
+    )
+
+    # Add target range overlay
+    ax.axhspan(70, 180, color='green', alpha=0.1, label='Target Range (70-180 mg/dL)')
+
+    # Customize the chart
+    ax.set_title('ΠΡΟΦΙΛ ΔΙΑΚΥΜΑΝΣΗΣ ΓΛΥΚΟΖΗΣ (AGP)', fontsize=16, fontweight='bold')
+    ax.set_xlabel('Time of Day (Hours)', fontsize=12)
+    ax.set_ylabel('Glucose (mg/dL)', fontsize=12)
+    ax.set_xticks(range(0, 25, 3))
+    ax.set_xticklabels([f"{int(x):02d}:00" for x in range(0, 25, 3)])
+    ax.set_ylim(0, 350)
+    ax.legend(loc='upper right', fontsize=10)
+    ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+    return fig
+
+# Streamlit Application
+st.title("Ambulatory Glucose Profile (AGP) Report")
+
+if uploaded_file:
+    data = load_data(uploaded_file)
+    agp_data = compute_agp(data)
+
+    # Display AGP visualization
+    st.header("ΠΡΟΦΙΛ ΔΙΑΚΥΜΑΝΣΗΣ ΓΛΥΚΟΖΗΣ (AGP)")
+    agp_chart = plot_agp(agp_data)
+    st.pyplot(agp_chart)
+
